@@ -1,8 +1,8 @@
 import * as fs from "./fileSystem";
 import * as path from "path";
-import {NpmRegistryClient, NpmRegistryConfig} from "./NpmRegistryClient";
-import {PluginVm} from "./PluginVm";
-import {IPluginInfo} from "./PluginInfo";
+import { NpmRegistryClient, NpmRegistryConfig } from "./NpmRegistryClient";
+import { PluginVm } from "./PluginVm";
+import { IPluginInfo } from "./PluginInfo";
 import * as lockFile from "lockfile";
 import * as semver from "semver";
 import Debug from "debug";
@@ -71,10 +71,16 @@ export class PluginManager {
 			options.pluginsPath = path.join(options.cwd, "plugin_packages");
 		}
 
-		this.options = {...DefaultOptions, ...(options || {})};
+		this.options = { ...DefaultOptions, ...(options || {}) };
 		this.vm = new PluginVm(this);
 		this.npmRegistry = new NpmRegistryClient(this.options.npmRegistryUrl, this.options.npmRegistryConfig);
 		this.githubRegistry = new GithubRegistryClient(this.options.githubAuthentication);
+
+		fs.readJsonFile(path.join(this.options.pluginsPath, 'plugins.json')).then(value => {
+			this.installedPlugins.push(...value);
+		}).catch(err => {
+			debug('read plugins.json error:' + err)
+		})
 	}
 
 	async install(name: string, version?: string): Promise<IPluginInfo> {
@@ -86,6 +92,15 @@ export class PluginManager {
 		} finally {
 			await this.syncUnlock();
 		}
+	}
+	writePluginsInfo() {
+		fs.writeFile(path.join(this.options.pluginsPath, 'plugins.json'),
+			JSON.stringify(this.installedPlugins, undefined, 4), 'utf8')
+			.then(() => {
+				debug('write plugins.json success');
+			}).catch(err => {
+				debug('write plugins.json error:' + err);
+			})
 	}
 
 	/**
@@ -168,6 +183,8 @@ export class PluginManager {
 			for (const plugin of this.installedPlugins.slice().reverse()) {
 				await this.uninstallLockFree(plugin.name);
 			}
+
+			this.writePluginsInfo();
 		} finally {
 			await this.syncUnlock();
 		}
@@ -178,7 +195,7 @@ export class PluginManager {
 	}
 
 	require(fullName: string): any {
-		const {pluginName, requiredPath} = this.vm.splitRequire(fullName);
+		const { pluginName, requiredPath } = this.vm.splitRequire(fullName);
 
 		const info = this.getInfo(pluginName);
 		if (!info) {
@@ -535,7 +552,7 @@ export class PluginManager {
 
 		// '/' is permitted to support scoped packages
 		if (name.startsWith(".")
-		|| name.indexOf("\\") >= 0) {
+			|| name.indexOf("\\") >= 0) {
 			return false;
 		}
 
@@ -638,6 +655,7 @@ export class PluginManager {
 
 		// this.unloadDependents(plugin.name);
 
+		this.writePluginsInfo();
 		return plugin;
 	}
 
@@ -647,6 +665,7 @@ export class PluginManager {
 			this.installedPlugins.splice(index, 1);
 		}
 		this.sandboxTemplates.delete(plugin.name);
+		this.writePluginsInfo();
 
 		this.unloadWithDependents(plugin);
 

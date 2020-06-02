@@ -1,9 +1,13 @@
 {
-    "typescript.tsdk": "./node_modules/typescript/lib",
-    "files.exclude" : {
-        "**/*.js": { "when": "$(basename).ts"},
-        "**/*.d.ts": true,
-        "**/*.js.map": true
-    },
-    "tslint.alwaysShowRuleFailuresAsWarnings": true
+  "typescript.tsdk": "./node_modules/typescript/lib",
+  "files.exclude": {
+    "**/*.js": { "when": "$(basename).ts" },
+    "**/*.d.ts": true,
+    "**/*.js.map": true
+  },
+  "eslint.enable": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.tslint": true
+  },
+  "tslint.alwaysShowRuleFailuresAsWarnings": true
 }
