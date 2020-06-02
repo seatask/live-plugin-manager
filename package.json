@@ -8,8 +8,8 @@
     "npm",
     "install"
   ],
-  "main": "index.js",
-  "typings": "index.d.ts",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
   "scripts": {
     "src-build": "tsc",
     "src-build-w": "tsc -w",
