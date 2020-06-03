@@ -9,5 +9,8 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.tslint": true
   },
+  "[typescript]": {
+    "editor.defaultFormatter": "ms-vscode.vscode-typescript-tslint-plugin"
+  },
   "tslint.alwaysShowRuleFailuresAsWarnings": true
 }

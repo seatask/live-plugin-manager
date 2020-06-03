@@ -62,6 +62,7 @@ export class PluginManager {
 	readonly options: PluginManagerOptions;
 	private readonly vm: PluginVm;
 	private readonly installedPlugins = new Array<IPluginInfo>();
+	private readonly installedPluginsWithoutDeps = new Array<IPluginInfo>();
 	private readonly npmRegistry: NpmRegistryClient;
 	private readonly githubRegistry: GithubRegistryClient;
 	private readonly sandboxTemplates = new Map<string, PluginSandbox>();
@@ -76,11 +77,7 @@ export class PluginManager {
 		this.npmRegistry = new NpmRegistryClient(this.options.npmRegistryUrl, this.options.npmRegistryConfig);
 		this.githubRegistry = new GithubRegistryClient(this.options.githubAuthentication);
 
-		fs.readJsonFile(path.join(this.options.pluginsPath, 'plugins.json')).then(value => {
-			this.installedPlugins.push(...value);
-		}).catch(err => {
-			debug('read plugins.json error:' + err)
-		})
+		this.readPluginsInfo();
 	}
 
 	async install(name: string, version?: string): Promise<IPluginInfo> {
@@ -93,15 +90,6 @@ export class PluginManager {
 			await this.syncUnlock();
 		}
 	}
-	writePluginsInfo() {
-		fs.writeFile(path.join(this.options.pluginsPath, 'plugins.json'),
-			JSON.stringify(this.installedPlugins, undefined, 4), 'utf8')
-			.then(() => {
-				debug('write plugins.json success');
-			}).catch(err => {
-				debug('write plugins.json error:' + err);
-			})
-	}
 
 	/**
 	 * Install a package from npm
@@ -113,7 +101,10 @@ export class PluginManager {
 
 		await this.syncLock();
 		try {
-			return await this.installFromNpmLockFreeCache(name, version);
+			const info = await this.installFromNpmLockFreeCache(name, version);
+			this.installedPluginsWithoutDeps.push(info);
+			this.writePluginsInfo();
+			return info;
 		} finally {
 			await this.syncUnlock();
 		}
@@ -129,7 +120,10 @@ export class PluginManager {
 
 		await this.syncLock();
 		try {
-			return await this.installFromPathLockFree(location, options);
+			const info =  await this.installFromPathLockFree(location, options);
+			this.installedPluginsWithoutDeps.push(info);
+			this.writePluginsInfo();
+			return info;
 		} finally {
 			await this.syncUnlock();
 		}
@@ -140,7 +134,10 @@ export class PluginManager {
 
 		await this.syncLock();
 		try {
-			return await this.installFromGithubLockFree(repository);
+			const info =  await this.installFromGithubLockFree(repository);
+			this.installedPluginsWithoutDeps.push(info);
+			this.writePluginsInfo();
+			return info;
 		} finally {
 			await this.syncUnlock();
 		}
@@ -157,7 +154,10 @@ export class PluginManager {
 
 		await this.syncLock();
 		try {
-			return await this.installFromCodeLockFree(name, code, version);
+			const info = await this.installFromCodeLockFree(name, code, version);
+			this.installedPluginsWithoutDeps.push(info);
+			this.writePluginsInfo();
+			return info;
 		} finally {
 			await this.syncUnlock();
 		}
@@ -168,7 +168,13 @@ export class PluginManager {
 
 		await this.syncLock();
 		try {
-			return await this.uninstallLockFree(name);
+			await this.uninstallLockFree(name);
+
+			const index = this.installedPluginsWithoutDeps.findIndex(r => r.name === name);
+			if (index >= 0) {
+				this.installedPluginsWithoutDeps.splice(index, 1);
+			}
+			this.writePluginsInfo();
 		} finally {
 			await this.syncUnlock();
 		}
@@ -183,7 +189,7 @@ export class PluginManager {
 			for (const plugin of this.installedPlugins.slice().reverse()) {
 				await this.uninstallLockFree(plugin.name);
 			}
-
+			this.installedPluginsWithoutDeps.splice(0, this.installedPluginsWithoutDeps.length);
 			this.writePluginsInfo();
 		} finally {
 			await this.syncUnlock();
@@ -191,7 +197,7 @@ export class PluginManager {
 	}
 
 	list(): IPluginInfo[] {
-		return this.installedPlugins.map((p) => p);
+		return this.installedPluginsWithoutDeps.map((p) => p);
 	}
 
 	require(fullName: string): any {
@@ -278,6 +284,34 @@ export class PluginManager {
 		return this.vm.runScript(code);
 	}
 
+	private readPluginsInfo(){
+		fs.readJsonFile(path.join(this.options.pluginsPath, 'plugins.json')).then(value => {
+			this.installedPlugins.push(...value);
+		}).catch(err => {
+			debug('read plugins.json error:' + err)
+		})
+		fs.readJsonFile(path.join(this.options.pluginsPath, 'plugins-without-deps.json')).then(value => {
+			this.installedPluginsWithoutDeps.push(...value);
+		}).catch(err => {
+			debug('read plugins.json error:' + err)
+		})
+	}
+	private	writePluginsInfo() {
+		fs.writeFile(path.join(this.options.pluginsPath, 'plugins.json'),
+			JSON.stringify(this.installedPlugins, undefined, 4), 'utf8')
+			.then(() => {
+				debug('write plugins.json success');
+			}).catch(err => {
+				debug('write plugins.json error:' + err);
+			})
+		fs.writeFile(path.join(this.options.pluginsPath, 'plugins-without-deps.json'),
+				JSON.stringify(this.installedPluginsWithoutDeps, undefined, 4), 'utf8')
+				.then(() => {
+					debug('write plugins.json success');
+				}).catch(err => {
+					debug('write plugins.json error:' + err);
+				})
+	}
 	private async uninstallLockFree(name: string): Promise<void> {
 		if (!this.isValidPluginName(name)) {
 			throw new Error(`Invalid plugin name '${name}'`);
