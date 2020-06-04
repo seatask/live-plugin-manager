@@ -12,6 +12,7 @@
   "typings": "dist/index.d.ts",
   "scripts": {
     "src-build": "tsc",
+    "lib:build": "tsc",
     "src-build-w": "tsc -w",
     "tslint": "tslint -p .",
     "develop": "npm run src-build-w",
