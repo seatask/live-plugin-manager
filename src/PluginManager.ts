@@ -2,7 +2,7 @@ import * as fs from "./fileSystem";
 import * as path from "path";
 import { NpmRegistryClient, NpmRegistryConfig } from "./NpmRegistryClient";
 import { PluginVm } from "./PluginVm";
-import { IPluginInfo } from "./PluginInfo";
+import { IPluginInfo, PluginFromEnum } from './PluginInfo';
 import * as lockFile from "lockfile";
 import * as semver from "semver";
 import Debug from "debug";
@@ -102,6 +102,7 @@ export class PluginManager {
 		await this.syncLock();
 		try {
 			const info = await this.installFromNpmLockFreeCache(name, version);
+			info.from = PluginFromEnum.npm;
 			this.installedPluginsWithoutDeps.push(info);
 			this.writePluginsInfo();
 			return info;
@@ -121,6 +122,7 @@ export class PluginManager {
 		await this.syncLock();
 		try {
 			const info =  await this.installFromPathLockFree(location, options);
+			info.from = PluginFromEnum.path;
 			this.installedPluginsWithoutDeps.push(info);
 			this.writePluginsInfo();
 			return info;
@@ -135,6 +137,7 @@ export class PluginManager {
 		await this.syncLock();
 		try {
 			const info =  await this.installFromGithubLockFree(repository);
+			info.from = PluginFromEnum.github;
 			this.installedPluginsWithoutDeps.push(info);
 			this.writePluginsInfo();
 			return info;
@@ -155,6 +158,7 @@ export class PluginManager {
 		await this.syncLock();
 		try {
 			const info = await this.installFromCodeLockFree(name, code, version);
+			info.from = PluginFromEnum.code;
 			this.installedPluginsWithoutDeps.push(info);
 			this.writePluginsInfo();
 			return info;
@@ -784,6 +788,8 @@ export class PluginManager {
 		return {
 			name: packageJson.name,
 			version: packageJson.version,
+			from: PluginFromEnum.none,
+			author: packageJson.author || '',
 			location,
 			mainFile,
 			dependencies: packageJson.dependencies || {}

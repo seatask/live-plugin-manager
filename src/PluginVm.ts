@@ -2,7 +2,7 @@ import * as vm from "vm";
 import * as fs from "fs-extra";
 import * as path from "path";
 import {PluginManager} from "./PluginManager";
-import {IPluginInfo} from "./PluginInfo";
+import {IPluginInfo, PluginFromEnum} from "./PluginInfo";
 import Debug from "debug";
 import { PluginSandbox } from "../index";
 const debug = Debug("live-plugin-manager.PluginVm");
@@ -73,6 +73,8 @@ export class PluginVm {
 			location: path.join(this.manager.options.pluginsPath, name),
 			mainFile: filePath,
 			name,
+			author: '',
+			from: PluginFromEnum.code,
 			version: "1.0.0",
 			dependencies: {}
 		};
